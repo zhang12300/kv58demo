@@ -1,0 +1,11 @@
+*.o
+*.dep
+*.wsdt
+*.linf
+*.bat
+*.ps1
+*.scl
+*.Debug.cspy.bat
+*.Debug.cspy.ps1
+*.Debug.general.xcl
+
