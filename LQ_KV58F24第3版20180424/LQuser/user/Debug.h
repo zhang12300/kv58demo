@@ -14,8 +14,8 @@
 #include "common.h"
 #include "Flash.h"
 #include "LQ12864.h"
-#include "ImagePro.h"
-#include "RunControl.h"
+#include "LQ_MT9V034.h"
+#include "include.h"
 
 //2. ∫Í∂®“Â
 

@@ -81,18 +81,24 @@ uint8 TimeRealRunFlag = 0;                  //定时跑标志。0未跑完，1已跑完。
 uint8 DebugPortInit(void)
 {
   //4个拨码开关IO口初始化
-  gpio_init(PORTE,6,0,1);                               
-  gpio_init(PORTE,7,0,1);
-  gpio_init(PORTE,8,0,1);
-  gpio_init(PORTE,9,0,1);
+  
+   GPIO_Init(PORTC, 6, 0, 1);                                  
+   GPIO_Init(PORTC, 7, 0, 1);
+   GPIO_Init(PORTC, 8, 0, 1);
+   GPIO_Init(PORTC, 9, 0, 1);
   
   //6个按键的初始化
-  gpio_init(PORTE,0,0,1);  //PTE0,按键0,初始值置1。up上。
-  gpio_init(PORTE,1,0,1);  //PTE1,按键1,初始值置1。down下。
-  gpio_init(PORTE,2,0,1);  //PTE2,按键2,初始值置1。ok确认。
-  gpio_init(PORTE,3,0,1);  //PTE3,按键3,初始值置1。esc取消。
-  gpio_init(PORTE,4,0,1);  //PTE4,按键4,初始值置1
-  gpio_init(PORTE,5,0,1);  //PTE5,按键5,初始值置1
+
+   GPIO_Init(PORTB, 20, 0, 1); //PTE0,按键0,初始值置1。up上。                                 
+   GPIO_Init(PORTB, 21, 0, 1); //PTE1,按键1,初始值置1。down下。
+   GPIO_Init(PORTB, 22, 0, 1); //PTE2,按键2,初始值置1。ok确认。
+   GPIO_Init(PORTE, 13, 0, 1);  //PTE3,按键3,初始值置1。esc取消。
+//  gpio_init(PORTE,0,0,1);  //PTE0,按键0,初始值置1。up上。
+//  gpio_init(PORTE,1,0,1);  //PTE1,按键1,初始值置1。down下。
+//  gpio_init(PORTE,2,0,1);  //PTE2,按键2,初始值置1。ok确认。
+//  gpio_init(PORTE,3,0,1);  //PTE3,按键3,初始值置1。esc取消。
+//  gpio_init(PORTE,4,0,1);  //PTE4,按键4,初始值置1
+//  gpio_init(PORTE,5,0,1);  //PTE5,按键5,初始值置1
   
   return 1;
 }
