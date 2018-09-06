@@ -151,7 +151,17 @@ void main(void)
 	DisableInterrupts;                                    //关闭所有中断
 	LED_Init();               //LED初始化
 	LED_Ctrl(LEDALL, OFF); 
-	PIT_Init(PIT0, 200);          //PIT定时中断初始化,pit0中断已经开启
+	PIT_Init(PIT0, 7500);          //PIT定时中断初始化,pit0中断已经开启
+	Servo_Init();        //电机频率设置
+	FTM_AB_Init(FTM1);           //编码器初始化
+	FTM_AB_Init(FTM2);           //编码器初始化 
+	ADC0_Init();             //电源低压报警ADC初始化
+	Init_LQ_9AX();
+	MT9V034_Init();              //摄像头初始化
+	
+	  
+	
+	
 	
 	
 	
