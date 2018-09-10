@@ -1,0 +1,707 @@
+if(ImagePro() == 1 || AngleSpeDealFlag == 1)          //图像处理  
+{
+
+}
+else
+{
+
+}
+
+
+ServoPID();         //舵机控制
+uint8 ImagePro(void)
+{
+    ErrorCountNow5++;
+  
+    //图像取需要的列，重新赋值是为了后面的编程方便。比如320列（#define CameraWidth 320）60行（//#define CameraHight 60)里面选择250列(#define CameraRealWidth 250   //一行实际取的像素点数)
+	
+    ImgPut();          
+
+    //图像处理之前的参数初始化。
+    ImageProParaInit();
+   
+    //黑线提取函数
+    if(BlackGet() == 0)
+    {
+        //uart_sendN(UART0, (uint8 *)"\nBlackGet Failed!", 17);  
+        CenterLineResult = 0;
+        PathJudgeDone = 0;             //赛道类型判断失败。
+        PathType = PathTypeUnknown;    //赛道类型置为未知。
+        ImgBlackSucceedFlag = 0;
+    }
+    //黑线提取成功后的处理。
+    else
+    {
+    }
+
+    //赛道类型判断
+    //到这里时，左右黑线至少有一个提取成功，中心线还没有提取。
+    PathJudgeNew();
+    
+    //直角黑块确认。//这届不使用
+    //AngleZoneConfirm();
+    
+    //障碍物确认 与 避障处理，会改变CenterLineLoc[]数组的值。
+    BrickAvoid();
+    
+    //坡道禁止赛道类型判断期间的线头平齐
+    GyroResultForbidSpeDeal();
+ 
+    //中心线提取函数。里面有中心线的线头线尾查找。
+    //除非图像太差，否则该函数基本上不会返回0.
+    //黑线提取失败后，不允许中心线提取。
+    CenterLineResult = 1;
+    if(ImgBlackSucceedFlag == 0 || CenterLineGetRaw() == 0)
+    {
+      //uart_sendN(UART0, (uint8 *)"\nCenterLineGet Failed!", 22); 
+      CenterHeadLine = MaxValUint8;
+      CenterEndLine = MaxValUint8;
+      CenterLineResult = 0; //
+      PathJudgeDone = 0;   //赛道类型判断失败。
+      PathType = 0;        //赛道类型置为未知。
+      ImgCenterSucceedFlag = 0;
+    }
+    else
+    {
+    }
+    
+    //必须黑线和中心线都提取成功后才能视为图像处理成功。
+    if(ImgBlackSucceedFlag == 1 && ImgCenterSucceedFlag == 1)
+    {
+      GPIO_PDOR_REG(PORTA) |= (1<<17);
+      ImgProSucceedFlag = 1;
+    }
+    else
+    {
+      GPIO_PDOR_REG(PORTA) &= ~(1<<17);
+      ImgProSucceedFlag = 0;
+    }
+   
+    
+    if(ImgProSucceedFlag == 1)
+    {
+      //图像处理成功后的处理。
+      ImgProSucceedDeal();
+    }
+    else
+    {
+      //图像处理失败后的处理。
+      ImgProFailDeal();
+    }
+    
+    //判断是否跑出赛道，10次图像失败就认为跑出赛道（刚开始做车的阶段先注释掉）
+    /*if(CenterHeadLine==MaxValUint8 && CenterEndLine==MaxValUint8)
+    {
+      if(++ImgProFailCount > 10)
+      {
+        RunOutFlag = 1;
+      }
+    }
+    else
+    {
+        ImgProFailCount = 0;
+    }*/
+    
+    //偏差滤波。
+    //DeviNowFilter();
+    
+    //直角弯确认函数。在偏差求取后面，因为此时是绝对瞎眼。
+    //若干次直角弯确认后，才会最终确认为直角弯。
+    //最终确认后，会进行若干次的特殊处理。
+    //特殊处理时，不受图像成功标志位的影响。
+    //特殊处理时，会对几个Level和DeviNow进行特殊赋值。
+    //有想过针对最后一次有效的Devi进行分类的特殊处理，但似乎没有必要。
+    
+    //这届不需要确认直角弯
+    //AngleStep2Confirm();
+    
+    return ImgProSucceedFlag;
+}
+
+	void ImgPut(void)
+	{
+		uint16 i,j,k,temp1,temp2;
+		temp1=CameraRealLeftCol;
+		temp2=CameraRealLeftcol+CameraRealWidth;
+		//temp1=CameraWidth/2-CameraRealWidth/2-1;
+		//temp2=CameraWidth/2+CameraRealWidth/2-1;
+			//摄像头尺寸宏定义
+			//#define CameraWidth 320
+			//#define CameraHight 60
+			////2. 宏定义
+			//#define CameraRealWidth 250         //一行实际取的像素点数
+		if (ImgPresent==ImgNO1)//如果当前是第1幅图像正在接收数据（即第二幅图像接收完成）
+		{
+			for(i=0;i<CameraHight;i++)
+						//uint8 CameraRealLeftCol = CameraWidth/2 - CameraRealWidth/2;    
+						//ImgPut()函数中，320列图像取250列的真正起始列，用以修正机械偏差。
+			{
+				k=0;
+				for(j=temp1;j<temp2;j++)
+				{
+					ImgNew[CameraHight-1-i][CameraRealWidth-1-k]=Imgstore2[i][j];
+					k++;
+				}
+			}
+		}
+	 else if (ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
+		{
+		  for(i = 0; i < CameraHight; i++)
+		  {
+			k = 0;
+			for(j = temp1; j < temp2; j++)
+			{
+			  ImgNew[CameraHight-1-i][CameraRealWidth-1-k] = ImgStore1[i][j];
+			  k++;
+			}
+		  }
+		}
+		else 
+		{
+			//uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);   //错误警告
+		}
+	  
+	}
+	
+	uint8 ImageProParaInit(void)
+	{
+		uint8 i;
+		//图像处理成功标志位ImgBlackSucceedFlag和ImgCenterSucceedFlag，默认置1
+		ImgBlackSucceedFlag=1;
+		ImgCenterSucceedFlag=1;
+		//小S弯道判断标识初始化为失败  
+		PathSmallSDoneFlag=0;
+		//中心线数组赋予无效值
+		for(i=0;;i++)
+		{
+			CenterLineLoc[i]=MaxValInt16;
+			//#define MaxValInt16 32767           //自定义的无效值。
+			if(i==CameraHight-1)break;
+		}
+		//赛道半宽记录值
+		{
+			RoadHalfWidthRecord[i]=MaxValInt8;
+			//#define MaxValUint8 255             //自定义的无效值
+		}
+		//通过赛道半宽判断出来的单线错误标志，初始化为未进入
+		RoadHalfWidthWrongFlag=2;
+		//单线地板变量的处理
+		SingleDoneFlag=0;
+		SingleFloorFlag=0;
+		SingleFloorConfirmCount=0;
+		SingleFloorConfirmCountMax=0;
+		//每行的单线确认标志初始化为失败
+		for(i=0;;i++)
+		{
+			SingleBlackFlag[i]=0;
+			if(i==CameraHight-1)break;
+		}
+		//总幅图像的单线标志，先存上一次的标志，在初始化为0
+		SingleBlackLastAllFlag=SingleBlackAllFlag;//uint8 SingleBlackAllFlag = 0;   //总幅图像的单线标志，只要有一行检测单线成功，则置1.每幅图像处理前置0.
+		SingleBlackAllFlag=0;
+		//单线错误标志，0没错误，1有错误，初始化为0
+		BlackSingleFlag=0;
+		flag222=0;
+		BrickLineCountNumRecord=0;
+		//最终大跳变检测标志位
+		BlackBigChangeFinalCheckFlag=0;
+		//直角模块
+		for(i=0;;i++)
+		{
+			AngleZoneJudgeRowL[i]=0;//直角黑块，根据线头选中的要检测的左线行
+			AngleZoneJudgeRowR[i]=0;//直角黑块，根据线头选中的要检测的右线行
+			AngleZoneJudgeColL[i]=0;//直角黑块，左线定位的所在列
+			AngleZoneJudgeCountColL[i]=0;
+			AngleZoneJudgeColLFlag[i]=0;//直角黑块，左线该行的有效黑点满足要求时置位
+			AngleZoneJudgeColR[i]=0;//直角黑块，右线定位的所在列
+			AngleZoneJudgeColRFlag[i]=0;//直角黑块，右线该行的有效黑点满足要求时置位
+			AngleZoneJudgeCountColR[i]=0;
+			if(i==AngleZoneJudgeRowNum-1)break;
+		}
+		//障碍物
+		BrickEndColL=0;//障碍物，左直角梯形，起始行（近行）黑点的所在列
+		BrickHeadColL=0;//障碍物，左直角梯形，结束行（远行）黑点所在列
+		BrickBorderColL=0;//障碍物，左直角梯形，直角边所在列
+		BrickEndColR=0;//障碍物，右直角梯形，起始行（近行）黑点所在列。
+		BrickHeadColR = 0;   //障碍物，右直角梯形，结束行（远行）黑点所在列。
+		BrickBorderColR = 0; //障碍物，右直角梯形，直角边所在列。
+		BrickSpeDealCenFlag=1;
+		
+		return 1;
+	}
+			
+		
+	uint8 BlackGet(void)
+	{
+		uint8 i;
+		uint8 tempBlackAngleZoneSpeCheck;//斜入直角黑块储存位
+		uint8 tempBlackBigChangeFinalCheck;//最终大跳变检测储存位
+		uint8 tempBlackSingleSpeCheck;//单线错误检测储存位
+		//黑线提取预处理。决定先扫描那条线
+		BlackGetPre();
+		//预处理左线头成功或左右线头均失败时，从左线开始扫描。
+		if(BlackGetPreDir == 0 || BlackGetPreDir == 2)
+		{
+		  //左黑线提取，成功则返回1，失败则返回0.
+		  if(BlackGetLeft() == 0)
+		  {
+			BlackLeftDone = 0;                  //左黑线提取失败
+			BlackLeftHeadLine = MaxValUint8;    //左线头置无效值。
+			BlackLeftEndLine = MaxValUint8;    //左线尾置无效值。
+		  }
+		  else
+		  {
+			//先进行左黑线连续性补线
+			BlackLeftContinueAdd();
+			//再进行左黑线线头线尾查找
+			BlackLeftHeadEndSearch();
+	  
+		  }    
+		  
+		  //右黑线提取，成功则返回1，失败则返回0.
+		  //如果是右障碍特殊处理，则右黑线函数不用执行，直接置为失败。
+		  if(
+			(BrickSpeDealFlag == 1 && BrickSpeDealDir == 1)
+		  ||(BlackGetRight() == 0)
+			)
+		  {
+			BlackRightDone = 0;                  //右黑线提取失败
+			BlackRightHeadLine = MaxValUint8;    //右线头置无效值。      
+		  }
+		  else
+		  {
+			//先进行右黑线连续性补线
+			BlackRightContinueAdd();
+			//再进行右黑线线头线尾查找
+			BlackRightHeadEndSearch();
+		  }
+		}
+		//右线头成功，从右线开始扫描。
+		else
+		{
+		  //右黑线提取，成功则返回1，失败则返回0.
+		  if(BlackGetRight() == 0)
+		  {
+			BlackRightDone = 0;                  //右黑线提取失败
+			BlackRightHeadLine = MaxValUint8;    //右线头置无效值。      
+		  }
+		  else
+		  {
+			//先进行右黑线连续性补线
+			BlackRightContinueAdd();
+			//再进行右黑线线头线尾查找
+			BlackRightHeadEndSearch();
+		  }
+		  
+		  //左黑线提取，成功则返回1，失败则返回0.
+		  //如果是左障碍特殊处理，则左黑线函数不用执行，直接置为失败。
+		  if(
+			(BrickSpeDealFlag == 1 && BrickSpeDealDir == 0)
+		  ||(BlackGetLeft() == 0)
+			)
+		  {
+			BlackLeftDone = 0;                  //左黑线提取失败
+			BlackLeftHeadLine = MaxValUint8;    //左线头置无效值。
+			BlackLeftEndLine = MaxValUint8;    //左线尾置无效值。
+		  }
+		  else
+		  {
+			//先进行左黑线连续性补线
+			BlackLeftContinueAdd();
+			//再进行左黑线线头线尾查找
+			BlackLeftHeadEndSearch();
+	  
+		  }
+		}
+		 
+		//左、右黑线均提取失败，则黑线提取失败。
+		if((BlackLeftDone == 0) && (BlackRightDone == 0))
+		{
+		  return 0;
+		}
+		else
+		{
+		  //左右黑线畸变矫正
+		  BlackUdis();
+		  
+		  //只要有一边成功就可以进来。
+		  //由于回弯要用到斜率，所以提前计算。
+		  //曲率、斜率求取的标志位，1成功，0失败。
+		  CurveSlopeFlagL = 1;
+		  CurveSlopeFlagR = 1;
+		  //左黑线的曲率、斜率的求取。  
+		  if(CurveSlopeGetLeft() == 0)
+		  {
+			CurveSlopeFlagL = 0;
+			//uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetLeft() Failed!", 28);
+		  }
+		  else
+		  {
+		  }
+		  
+		  //右黑线的曲率、斜率的求取。  
+		  if(CurveSlopeGetRight() == 0)
+		  {
+			CurveSlopeFlagR = 0;
+			//uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetRight() Failed!", 29);
+		  }
+		  else
+		  {
+		  }
+		  
+		  //左线提取成功则进行左回弯检测
+		  if(BlackLeftDone == 1)
+		  {
+			//左回弯特殊检测。
+			if(BlackLeftRollCheck() == 0)
+			{
+			  BlackLeftRollCheckFlag = 1;         //检测到回弯。
+			  BlackLeftDone = 0;                  //左黑线提取失败
+			  //清除所有值。
+			  for(i = BlackLeftEndLine; ; i--)
+			  {
+				BlackLeftLoc[i][0] = MaxValUint8;
+				if(i == BlackLeftHeadLine) break;
+			  }
+			  BlackLeftHeadLine = MaxValUint8;    //左线头置无效值。
+			  BlackLeftEndLine = MaxValUint8;     //左线尾置无效值。
+			}
+			else
+			{
+			}
+		  }
+		  //左线提取失败就不用进行左回弯检测了
+		  else
+		  {
+		  }
+		  
+		  //右线提取成功则进行右回弯检测
+		  if(BlackRightDone == 1)
+		  {
+			//右回弯特殊检测。
+			if(BlackRightRollCheck() == 0)
+			{
+			  BlackRightRollCheckFlag = 1;         //检测到回弯。
+			  BlackRightDone = 0;                  //右黑线提取失败
+			  //清除所有值。
+			  for(i = BlackRightEndLine; ; i--)
+			  {
+				BlackRightLoc[i][0] = MaxValUint8;
+				if(i == BlackRightHeadLine) break;
+			  }
+			  BlackRightHeadLine = MaxValUint8;    //右线头置无效值。
+			  BlackRightEndLine = MaxValUint8;     //右线尾置无效值。
+			}
+			else
+			{
+			}
+		  }
+		  //右线提取失败就不用进行右回弯检测了
+		  else
+		  {
+		  }
+		  
+		}
+		
+		//若处在特殊赛道锁存或者特殊控制阶段，则不用进行大跳变最终检测 和 单线错误检测
+		if(AngleConfirmLockFlag == 1 || AngleSpeDealFlag == 1 || BrickConfirmLockFlag == 1 || BrickSpeDealFlag == 1)
+		{
+		}
+		else
+		{
+		  //斜入直角黑块检测
+		  tempBlackAngleZoneSpeCheck = 0;
+		//      if(BlackAngleZoneSpeCheckSwitch == 1)
+		//      {
+		//        //1表示检测到斜入直角黑块，0表示没有检测到。
+		//        tempBlackAngleZoneSpeCheck = BlackAngleZoneSpeCheck();
+		//      }
+		//      else
+		//      {
+		//      }
+
+		  //大跳变最终检测.
+		  tempBlackBigChangeFinalCheck = 0;
+		  if(tempBlackAngleZoneSpeCheck == 0 && BlackBigChangeFinalCheckSwitch == 1)
+		  {
+			//1表示检测到，0表示没检测到。
+			tempBlackBigChangeFinalCheck = BlackBigChangeFinalCheck();
+			//大跳变检测成功，重新找线头线尾，作畸变矫正，计算整条线的斜率、曲率，
+			if(tempBlackBigChangeFinalCheck == 1)
+			{
+			  //左黑线线头线尾查找
+			  BlackLeftHeadEndSearch();
+			  //右黑线线头线尾查找
+			  BlackRightHeadEndSearch();
+			  
+			  //左右黑线畸变矫正
+			  BlackUdis();
+			  
+			  //只要有一边成功就可以进来。
+			  //由于回弯要用到斜率，所以提前计算。
+			  //曲率、斜率求取的标志位，1成功，0失败。
+			  CurveSlopeFlagL = 1;
+			  CurveSlopeFlagR = 1;
+			  //左黑线的曲率、斜率的求取。  
+			  if(CurveSlopeGetLeft() == 0)
+			  {
+				CurveSlopeFlagL = 0;
+				//uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetLeft() Failed!", 28);
+			  }
+			  else
+			  {
+			  }
+			  
+			  //右黑线的曲率、斜率的求取。  
+			  if(CurveSlopeGetRight() == 0)
+			  {
+				CurveSlopeFlagR = 0;
+				//uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetRight() Failed!", 29);
+			  }
+			  else
+			  {
+			  }          
+			}
+			else
+			{
+			}
+		  }
+		  else
+		  {        
+		  }
+		  
+		  if(tempBlackAngleZoneSpeCheck == 1 || tempBlackBigChangeFinalCheck == 1)
+		  {
+			//前面的斜入直角黑块或大跳变已经检测成功了，就不用检测单线错误，两种针对的情况完全不同，关键在于线头线尾、畸变矫正、斜曲率计算最好不要重复，浪费时间。
+		  }
+		  /*
+		  else
+		  {
+			//黑线检测最后一步，找单线错误。
+			//单线错误比较差劲，出错了，这幅图就直接判定为错图。   
+			tempBlackSingleSpeCheck = BlackSingleSpeCheck();
+			if(tempBlackSingleSpeCheck == 0)
+			{
+			  BlackLeftDone = 0;
+			  BlackLeftHeadLine = MaxValUint8;
+			  BlackLeftEndLine = MaxValUint8;
+			  BlackRightDone = 0;
+			  BlackRightHeadLine = MaxValUint8;
+			  BlackRightEndLine = MaxValUint8;          
+			  
+			  return 0;
+			}
+			else
+			{
+			  //检测到了单线错误，重新找线头线尾，作畸变矫正，计算整条线的斜率、曲率，
+			  if(BlackSingleFlag == 1)
+			  {
+				//左黑线线头线尾查找
+				BlackLeftHeadEndSearch();
+				//右黑线线头线尾查找
+				BlackRightHeadEndSearch();
+				
+				//左右黑线畸变矫正
+				BlackUdis();
+				
+				//只要有一边成功就可以进来。
+				//由于回弯要用到斜率，所以提前计算。
+				//曲率、斜率求取的标志位，1成功，0失败。
+				CurveSlopeFlagL = 1;
+				CurveSlopeFlagR = 1;
+				//左黑线的曲率、斜率的求取。  
+				if(CurveSlopeGetLeft() == 0)
+				{
+				  CurveSlopeFlagL = 0;
+				  //uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetLeft() Failed!", 28);
+				}
+				else
+				{
+				}
+				
+				//右黑线的曲率、斜率的求取。  
+				if(CurveSlopeGetRight() == 0)
+				{
+				  CurveSlopeFlagR = 0;
+				  //uart_sendN(UART0, (uint8 *)"\nCurveSlopeGetRight() Failed!", 29);
+				}
+				else
+				{
+				}
+			  }
+			  //没有检测到单线错误，不用作处理。
+			  else
+			  {
+			  }
+			}
+		  }*/          
+		}
+
+		
+		return 1;
+	}
+		
+		
+		
+		//黑线提取预处理
+		uint8 BlackGetPre(void)
+		{
+			uint8 temp1,temp2;
+			//如果是障碍特殊处理期间，黑线从控制线开始扫描
+			if(BrickSpeDealFlag==0)//  头定义uint8 BrickSpeDealDir = 0;   //uint8 BrickSpeDealFlag = 0;       //障碍物特殊处理标志，1表示该周期进行了障碍物特殊处理，0表示该周期没有进行障碍物特殊处理。
+			{
+			    //左障碍，固定从右线开始扫描
+				if(BrickSpeDealDir==1)//extern uint8 BrickSpeDealDir;      //障碍物位置，0左障碍物，1右障碍物，2错误。       
+				{
+					BlackGetPreDir=1;
+				}
+				//右障碍，固定从左线开始扫描
+				else
+				{
+					BlackGetPreDir=0;			
+				}
+				return 1;
+			}
+			else
+			{
+			}
+			先预扫瞄左线
+			BlackGetLeftParaInit();//参数初始化
+			temp1=BlackGetLeftStep1Edge(CameraHight-1,1,1);//第三个参数1表示的是黑线预处理
+			temp2 = BlackGetLeftStep1Edge(CameraHight - 2, 2, 1);  //第三个参数1表示是黑线预处理
+		  if(
+			(temp1 == 1)
+		  &&(temp2 == 1)
+		  &&(AbsInt(BlackLeftLoc[CameraHight - 1][0] - BlackLeftLoc[CameraHight - 2][0]) < BlackLeftStep1ScanMinus)  //两点列差不能太大。
+			)
+		  {
+			//左线采集线头成功，从左线开始扫描。 
+			BlackGetPreDir = 0;
+			return 1;
+		  }
+		  else
+		  {
+			//有可能一行采集成功，所以要扫尾。
+			BlackLeftLoc[CameraHight - 1][0] = MaxValUint8;
+			BlackLeftLoc[CameraHight - 2][0] = MaxValUint8;
+		  }
+		  
+		  //左线头扫描失败，则扫描右线头
+		  BlackGetRightParaInit();  //参数初始化
+		  temp1 = BlackGetRightStep1Edge(CameraHight - 1, 1, 1);  //第三个参数1表示是黑线预处理
+		  temp2 = BlackGetRightStep1Edge(CameraHight - 2, 2, 1);  //第三个参数1表示是黑线预处理
+		  if(
+			(temp1 == 1)
+		  &&(temp2 == 1)
+		  &&(AbsInt(BlackRightLoc[CameraHight - 1][0] - BlackRightLoc[CameraHight - 2][0]) < BlackRightStep1ScanMinus)  //两点列差不能太大。
+			)
+		  {
+			//右线头采集成功，从右线开始扫描。
+			BlackGetPreDir = 1;
+			return 1;    
+		  }
+		  else
+		  {
+			//有可能一行采集成功，所以要扫尾。
+			BlackRightLoc[CameraHight - 1][0] = MaxValUint8;
+			BlackRightLoc[CameraHight - 2][0] = MaxValUint8;    
+			
+			//两线线头均采集失败，则应该是十字，仍然从左线开始扫描。
+			BlackGetPreDir = 2;
+			return 1;
+		  }
+		}
+			//左黑线提取前的参数初始化赋值
+			unit8 BlackGetLeftParaInit(void)
+			{
+				uint8 i;
+				//左线连续性标志，默认为1连续
+				BlackLeftContinueFlag=1;
+				//采集成功标志位
+				BlackLeftDone=1;
+				//左十字线头标志，0未进入，1超范围，2成功
+				BlackLeftCrossConfirmFlag=0;//默认为未进入
+				//小5点斜率储存数组置初始值
+				BlackLeft5SlopeIndex=0;
+				for(i=0;;i++)
+				{
+					BlackLeft5Slope[i]=MaxValInt16;
+					BlackLeft5SlopeRow[i]=MaxValInt8;
+					if(i==CameraHight-1)break;
+				}
+				回弯检测
+				BlackLeftRollCheckFlag=0;//检测到回弯道
+				BlackLeftBigChangeJumpFlag=0;//回弯跳过标志
+				
+				//大斜率检测时候，每幅图像的初始化为无效值
+				for (i=0;i<=4;i++)
+				{
+					BlackLeftBigChangeNumx[i]=MaxValUint8;
+					BlackLeftBigChangeNumy[i]=MaxValUint8;
+				}
+				BlackLeftBigChangeFlag=0;
+				BlackLeftBigChangeSlopeStore=MaxValInt16;
+				
+				//大斜率检测时候，每行的大跳变标志置0
+				for(i=0;;i++)
+				{
+					BlackLeftBigChangeCheckRow[i]=0;
+					if(i==CameraHight-1)break;
+				}
+				BlackLeftBigChangeCheckAllRow=0;
+				
+				//左黑线储存数组初始化为无效值
+				for(i=0;;i++)
+				{
+					BlackLeftLoc[i][0]=MaxValUint8;
+					if(i==CameraHight-1)break;
+				}
+				//十字外尾
+				BlackLeftCrossTailFlag=2;//十字外尾标志，0失败，1确认，2未进入
+				
+				//窗口预测值管理
+				for(i=0;;i++)
+				{
+					BlackLeftPredictL[i]=MaxValUint8;
+					BlackLeftPredictR[i]=MaxValUint8;
+					if(i==CameraHight-1)break;
+				}
+				//窗口预测储存值
+				BlackLeftWinPredictStore0=MaxValUint8;
+				BlackLeftWinPredictStore1=MaxValUint8;
+				BlackLeftWinPredictStore2=MaxValUint8;
+				
+				//第四阶段进入标志置为未进入
+				BlackLeftStep4Flag=0;
+				BlackLeftStep4StartLine=MaxValUint8;
+				//默认十字检测标志置为未进入
+				BlackLeftCrossDone=0;
+				return 1;
+			}
+			
+			//功能：右黑线的提取中，第1阶段跳变检测函数，处理该右左线的可疑黑点
+			//参数：待检测的行号row，第几次使用use，黑线预处理标志preflag（1是预处理）
+			//返回：1成功 0失败
+			//影响：BlackRightRealWB[],BlackRightRealW[],BlackRightRealB[]
+			//BlackRightLoc[][]
+			//说明：1.对第row行的跳变向右进行检测，成功就赋予相应的值
+			uint8 BlackGetRightStep1Edge(uint8 row,uint8 use,uint8 preflag)
+			{
+				uint8 index,col,temp1;
+				uint8 abs1
+				
+				
+
+
+
+
+			
+
+
+			
+			 
+				
+				
+				
+
+		

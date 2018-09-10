@@ -158,6 +158,15 @@ void main(void)
 	ADC0_Init();             //电源低压报警ADC初始化
 	Init_LQ_9AX();
 	MT9V034_Init();              //摄像头初始化
+	PORTD_ISFR |= 0x2000;   //清除行中断标识PTD13（1<<13）
+	PORTD_ISFR |= 0x4000;   //清除场中断标识PTD14(1<<14)
+							//PORTD_IRQn = 62,  /**< Port D interrupt */
+								
+	
+	
+	
+	
+	
 	
 	  
 	
