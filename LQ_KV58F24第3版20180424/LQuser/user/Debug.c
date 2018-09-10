@@ -114,13 +114,13 @@ void DebugDelay(int ms)
 }
 
 
-//Debug拨码开关扫描函数。
+//Debug拨码开关扫描函数。//edit by zhang 20180910(感觉学长的代码很奇怪，E6789是开关，却检测E0 12 3 4）
 uint8 DebugSwitchScan(void)
 {
   //拨码开关0. 
-  if(!(GPIOE_PDIR&0x0001))
+  if(!PTC6)
   {
-    if(!(GPIOE_PDIR&0x0001))
+    if(!PTC6)
     {    
       DebugSwitchFlag[0] = 1;
     }
@@ -135,9 +135,9 @@ uint8 DebugSwitchScan(void)
   }
   
   //拨码开关1. 
-  if(!(GPIOE_PDIR&0x0002))
+  if(!PTC7)
   {
-    if(!(GPIOE_PDIR&0x0002))
+    if(!PTC7)
     {
       DebugSwitchFlag[1] = 1;
     }
@@ -152,9 +152,9 @@ uint8 DebugSwitchScan(void)
   }
   
   //拨码开关2.
-  if(!(GPIOE_PDIR&0x0004))
+  if(!PTC8)
   {
-    if(!(GPIOE_PDIR&0x0004))
+    if(!PTC8)
     {
       DebugSwitchFlag[2] = 1;
     }
@@ -169,9 +169,9 @@ uint8 DebugSwitchScan(void)
   }  
   
   //拨码开关3. 
-  if(!(GPIOE_PDIR&0x0008))
+  if(!PTC9)
   {
-    if(!(GPIOE_PDIR&0x0008))
+    if(!PTC9)
     {
       DebugSwitchFlag[3] = 1;
     }
