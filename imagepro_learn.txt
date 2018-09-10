@@ -18,9 +18,30 @@ uint8 ImagePro(void)
     ImgPut();          
 
     //图像处理之前的参数初始化。
+		//图像处理成功标志位ImgBlackSucceedFlag和ImgCenterSucceedFlag，默认置1
+		//小S弯道判断标识初始化为失败
+		////中心线数组CenterLineLoc[i]赋予无效值
+		////赛道半宽记录值RoadHalfWidthRecord[i]
+		////通过赛道半宽判断出来的单线错误标志，初始化为未进入RoadHalfWidthWrongFlag=2;2未进入，1错误，0正确。
+		//单线地板变量的处理均置零
+			 // （uint8 SingleDoneFlag;              //单线处理时，单线成功标志位。
+			 //uint8 SingleFloorFlag;             //单线处理时，地板判断成功标志位。1该幅图画左线是地板，0不是或没有判断。
+			 //uint8 SingleFloorConfirmCount;       //单线处理时，地板判断确认计数值。每幅图归零一次。
+			 //uint8 SingleFloorConfirmCountMax;   //单线处理时，地板判断确认计数值的最大值，用于确认最佳确认阈值。每幅图归零一次。）
+		//每行的单线确认标志初始化为失败，SingleBlackFlag[i]=0;
+		//总幅图像的单线标志，先存上一次的标志，在初始化为0
+			//	SingleBlackLastAllFlag=SingleBlackAllFlag;//uint8 SingleBlackAllFlag = 0;   //总幅图像的单线标志，只要有一行检测单线成功，则置1.每幅图像处理前置0.
+			//	SingleBlackAllFlag=0;
+		//单线错误标志BlackSingleFlag，0没错误，1有错误，初始化为0 
+		//最终大跳变检测标志位	BlackBigChangeFinalCheckFlag=0; 
+		//直角模块、障碍物的初始化
     ImageProParaInit();
+	
    
     //黑线提取函数
+	//功  能：黑线提取程序
+	//参  数：无
+	//返  回：1成功 0失败
     if(BlackGet() == 0)
     {
         //uart_sendN(UART0, (uint8 *)"\nBlackGet Failed!", 17);  
@@ -36,20 +57,41 @@ uint8 ImagePro(void)
 
     //赛道类型判断
     //到这里时，左右黑线至少有一个提取成功，中心线还没有提取。
+	//返回0出错，1正常。
+	//1. 直角线头差 、 障碍 的 锁存 或 特殊控制 期间，不进行直角、直角黑块、障碍的检测 以及 直道 的检测
+	//2.1 直角黑块未锁存期间，检测直角黑块 或 障碍物 或 直道， 不检测直角线头差。
+	//2.2 直角黑块锁存期间，检测障碍物 和 直角线头差。不检测直角黑块 和 直道。
+	//3. 长直道判断
+	
     PathJudgeNew();
+	
     
     //直角黑块确认。//这届不使用
     //AngleZoneConfirm();
     
     //障碍物确认 与 避障处理，会改变CenterLineLoc[]数组的值。
+		//障碍锁存标志没有被置位的时候BrickConfirmLockFlag == 0才进行障碍计数，若已被置位，则不用进行障碍计数。
+			//左障碍成功，左障碍储存数组置1，右障碍储存数组置0（PathJudgeNew()中的BrickJudge()用来判断）
+			//右障碍储存数组置1.左障碍储存数组置0。
+			//其他，//判定为非障碍则新来的值置0.
     BrickAvoid();
     
     //坡道禁止赛道类型判断期间的线头平齐
+		//标志置位期间，将线头平齐
+			//右线头高，且两线头差别不大时。//对右线头削顶。
+			//左线头高，且两线头差别不大时。
+			//否则不做线头平齐处理。
     GyroResultForbidSpeDeal();
  
     //中心线提取函数。里面有中心线的线头线尾查找。
     //除非图像太差，否则该函数基本上不会返回0.
     //黑线提取失败后，不允许中心线提取。
+	//直角弯 锁存 或 强制控制期间，就不用进行正常的中心线提取。//ImgProSucceedDeal()里面的DeviFuse更新函数是没有用的，因为AngleStep2Confirm()在ImgProSucceedDeal()的后面执行，会强制更改DeviFuse.
+		//直角弯锁存或特殊控制时，CenterLineLoc[]数组一直是无效值
+		//障碍物强制控制期间，不执行正常的中心线提取，而是采用单边线的特殊中心线提取函数。//在BrickAvoid()中已经执行了中心线提取函数。
+		//不是特殊赛道，进行正常的中心线提取。有可能返回失败
+		
+		
     CenterLineResult = 1;
     if(ImgBlackSucceedFlag == 0 || CenterLineGetRaw() == 0)
     {
@@ -65,7 +107,7 @@ uint8 ImagePro(void)
     {
     }
     
-    //必须黑线和中心线都提取成功后才能视为图像处理成功。
+    //必须黑线和中心线都提取成功后才能视为图像处理成功。uint8 ImgCenterSucceedFlag = 1;                //中心线提取成功标志位，默认为1，若中心线提取失败，则置0
     if(ImgBlackSucceedFlag == 1 && ImgCenterSucceedFlag == 1)
     {
       GPIO_PDOR_REG(PORTA) |= (1<<17);
@@ -81,11 +123,24 @@ uint8 ImagePro(void)
     if(ImgProSucceedFlag == 1)
     {
       //图像处理成功后的处理。
+	  //只有图像处理成功了，才会进行赛道类型判断，才会进行偏差获取，舵机电机控制值才会更新。
+		//上一幅图最终的赛道半宽，图像成功才会切换。
+		//多行偏差算法。
+		//下一幅图像的黑线起始扫描列更新，
+			//若第CameraHight-1行的中心线数组有效，则取它。
+		    //若无效，则取第CameraHight-7(大于5行才能根据斜率来算)行对应的矫正行的BiasCal的计算值（根据斜率估算）
+			//若上一幅图是单线，则左右两边放宽，2个单线宽度
+			//上一幅图不是单线，双线正常处理
+
       ImgProSucceedDeal();
     }
     else
     {
       //图像处理失败后的处理。
+		//紧急停车很危险，容易造成程序死循环，所以要慎用。用开关控制用不用。
+		//赛道半宽判断出的单线错误标志置位时，扫描起点复位。直角弯不允许更新。
+		//只要不是直角弯导致的图像失败，则猜测可能是图像线头阈值太严格。线头阈值放宽一点点。 
+		//下一幅图像的黑线起始扫描列更新，暂时保持不变。
       ImgProFailDeal();
     }
     

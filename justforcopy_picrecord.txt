@@ -1,0 +1,23 @@
+//图像处理成功标志位ImgBlackSucceedFlag和ImgCenterSucceedFlag，默认置1
+//小S弯道判断标识初始化为失败
+////中心线数组CenterLineLoc[i]赋予无效值
+////赛道半宽记录值RoadHalfWidthRecord[i]
+////通过赛道半宽判断出来的单线错误标志，初始化为未进入RoadHalfWidthWrongFlag=2;2未进入，1错误，0正确。
+//单线地板变量的处理均置零
+	 // （uint8 SingleDoneFlag;              //单线处理时，单线成功标志位。
+	 //uint8 SingleFloorFlag;             //单线处理时，地板判断成功标志位。1该幅图画左线是地板，0不是或没有判断。
+	 //uint8 SingleFloorConfirmCount;       //单线处理时，地板判断确认计数值。每幅图归零一次。
+	 //uint8 SingleFloorConfirmCountMax;   //单线处理时，地板判断确认计数值的最大值，用于确认最佳确认阈值。每幅图归零一次。）
+//每行的单线确认标志初始化为失败，SingleBlackFlag[i]=0;
+//总幅图像的单线标志，先存上一次的标志，在初始化为0
+	//	SingleBlackLastAllFlag=SingleBlackAllFlag;//uint8 SingleBlackAllFlag = 0;   //总幅图像的单线标志，只要有一行检测单线成功，则置1.每幅图像处理前置0.
+	//	SingleBlackAllFlag=0;
+//单线错误标志BlackSingleFlag，0没错误，1有错误，初始化为0 
+//最终大跳变检测标志位	BlackBigChangeFinalCheckFlag=0; 
+//直角模块、障碍物的初始化
+
+ 
+ 
+ 
+ 
+ 

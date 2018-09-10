@@ -161,6 +161,10 @@ void main(void)
 	PORTD_ISFR |= 0x2000;   //清除行中断标识PTD13（1<<13）
 	PORTD_ISFR |= 0x4000;   //清除场中断标识PTD14(1<<14)
 							//PORTD_IRQn = 62,  /**< Port D interrupt */
+	PORTB_ISFR = PORT_ISFR_ISF_MASK;       //清PCLK所在PORT的标志位
+    disable_irq(LINE_IRQ);                 //关行中断IRQ
+    disable_irq(DMA0_IRQ);                 //关DMA传输完成中断IRQ
+    enable_irq(FIELD_IRQ);                //开场中断IRQ
 								
 	
 	

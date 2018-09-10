@@ -2376,6 +2376,12 @@
     <group>
         <name>add</name>
         <file>
+            <name>$PROJ_DIR$\LQuser\user\CameraSet.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\LQuser\user\CameraSet.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\LQuser\user\Debug.c</name>
         </file>
         <file>
@@ -2386,6 +2392,18 @@
         </file>
         <file>
             <name>$PROJ_DIR$\LQuser\user\Flash.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\LQuser\user\ImageGet.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\LQuser\user\ImageGet.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\LQuser\user\ImagePro.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\LQuser\user\ImagePro.h</name>
         </file>
     </group>
     <group>
