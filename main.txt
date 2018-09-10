@@ -158,13 +158,37 @@ void main(void)
 	ADC0_Init();             //电源低压报警ADC初始化
 	Init_LQ_9AX();
 	MT9V034_Init();              //摄像头初始化
+	
+	
 	PORTD_ISFR |= 0x2000;   //清除行中断标识PTD13（1<<13）
 	PORTD_ISFR |= 0x4000;   //清除场中断标识PTD14(1<<14)
+	PORTD_ISFR |= 0x1000;   //清PCLK所在PORT的标志位
 							//PORTD_IRQn = 62,  /**< Port D interrupt */
-	PORTB_ISFR = PORT_ISFR_ISF_MASK;       //清PCLK所在PORT的标志位
-    disable_irq(LINE_IRQ);                 //关行中断IRQ
-    disable_irq(DMA0_IRQ);                 //关DMA传输完成中断IRQ
-    enable_irq(FIELD_IRQ);                //开场中断IRQ
+	NVIC_EnableIRQ(62);
+	ImgStatus = ImgGetStart;        //图像采集标志位置为开始
+	
+	//初始化扫描拨码开关。
+    DebugSwitchScan();
+	
+	EnableInterrupts;                                     //打开所有中断 
+    flag = 0;                           //当用OLED修改参数后，参数flag会置位
+	//拨码开关打开传图像的模式
+    while(DebugSwitchFlag[3] == 1)
+    {
+	  LCD_P6x8Str(13,5,(uint8_t*)"Send Image ");
+      while(ImgStatus != ImgGetFinish); //如果图像采集未结束，则一直等待。
+      NVIC_DisableIRQ(62);
+      ImageSend();//UARTSendPicture(Image_Data);//发送数据到上位机，注意协议格式，不同的上位机看原函数对应修改//学长程序是ImageSend();
+      
+	  PORTD_ISFR |= 0x2000;   //清除行中断标识PTD13（1<<13）
+	  PORTD_ISFR |= 0x4000;   //清除场中断标识PTD14(1<<14)
+	  PORTD_ISFR |= 0x1000;   //清PCLK所在PORT的标志位
+      NVIC_EnableIRQ(62);
+      ImgStatus = ImgGetStart;              //图像采集标志位置为开始
+    }
+    //若拨码开关1拨在1的位置，则一直用OLED调参，否则跳出while循环，正常跑车。
+	
+	
 								
 	
 	

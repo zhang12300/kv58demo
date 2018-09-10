@@ -1,0 +1,128 @@
+//PORTB中断服务函数，含PCLK引发的DMA，B9
+//这个的IRQ不会打开，正常情况不会进来。
+void PORTB_Isr(void)  
+{
+    PORTB_ISFR = ~0;
+    uart_sendN(UART0, (uint8 *)"\nError In PORTB_Isr()!", 22);  //错误警告
+}
+
+
+//PORTC中断服务函数，含行中断，C8
+void PORTC_Isr(void)  
+{
+    uint32 FlagTmp = PORTC_ISFR;  
+    PORTC_ISFR =  ~0;             //清除PORTC的所有中断标志位
+    
+    if(FlagTmp & (1 << PIN_LINE))   //如果确认是行中断的
+    {
+        LineIsr();                    //进行中断处理函数
+    }
+}
+
+
+
+//PORTD中断服务函数，含场中断，D1
+void PORTD_Isr(void)  
+{
+    uint32 FlagTmp = PORTD_ISFR;  
+    PORTD_ISFR =  ~0;             //清除PORTD的所有中断标志位
+    
+    if(FlagTmp & (1 << PIN_FIELD))   //如果确认是场中断的
+    {
+        FieldIsr();                    //进场中断处理函数
+    }
+
+}
+
+
+
+//PORTE中断服务函数
+//这个的IRQ不会打开，正常情况不会进来。
+void PORTE_Isr(void)  
+{
+    PORTE_ISFR = ~0;
+    uart_sendN(UART0, (uint8 *)"\nError In PORTE_Isr()!", 22);   //错误警告
+}
+
+
+
+//场中断服务函数,下降沿触发中断，暂定为PTD1
+void FieldIsr(void)  
+{    
+    ErrorCountNow7++;
+
+    if(ImgStatus == ImgGetStart)  //如果的确是在ImageGet()中置了开始位，则继续。
+    {
+      //进来前已经清过标志位
+      enable_irq(LINE_IRQ);         //使能行中断IRQ
+      enable_irq(DMA0_IRQ);         //使能DMA0的IRQ
+      
+      LineCount = 0;               //采集行数初始值为1，后面的溢出判断就用">"而不是">="
+      LineRealCount = 0;
+      //LineCount_Index = 0;
+
+      //DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgRaw[0];     //目的地址恢复为数组开头
+
+      if(ImgPresent == ImgNO1)    //如果当前是第1幅图像正在接收数据（即第2幅图像接收完成）
+      {
+          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore1[0];     //目的地址恢复为第1个图像储存数组
+      }
+      else if(ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
+      {
+          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore2[0];     //目的地址恢复为第2个图像储存数组
+      }
+      else 
+      {
+          //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);   //错误警告
+      }
+
+      DMA_ERQ &= ~(1 << 0);      //DMA硬件禁用
+    }
+    else
+    {
+        //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);  //错误警报
+    }
+  
+}
+
+
+
+//行中断服务函数,上升沿触发中断，暂定为PTC8
+void LineIsr(void)
+{
+    ErrorCountNow8++;
+    
+    if(LineRealCount == LineRealCountVal120_60_02[LineCount])  //如果是需要采集的行，就采集，不是的话就跳过
+    {
+       //LineCount_Index++;
+        //DMA_INT |= (1<<0);        //清DMA传输完成标志位
+        DMA_ERQ |= (1 << 0);      //DMA硬件使能
+    }
+    LineRealCount++;             //实际行计数
+}
+
+
+
+
+
+
+//图像获取函数
+void ImageGet(void)
+{
+    
+    ImgStatus = ImgGetStart;        //图像采集标志位置为开始
+    enable_irq(FIELD_IRQ);         //开启图像采集
+    
+    while(ImgStatus != ImgGetFinish) ; //如果图像采集未结束，则一直等待。
+        
+}
+
+
+
+
+
+
+
+
+
+

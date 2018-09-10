@@ -156,61 +156,6 @@ uint8 const LineRealCountVal120_60_02[CameraHight] =
 };
 
 
-//场中断服务函数,下降沿触发中断，暂定为PTD1
-void FieldIsr(void)  
-{    
-    ErrorCountNow7++;
-
-    if(ImgStatus == ImgGetStart)  //如果的确是在ImageGet()中置了开始位，则继续。
-    {
-      //进来前已经清过标志位
-      enable_irq(LINE_IRQ);         //使能行中断IRQ
-      enable_irq(DMA0_IRQ);         //使能DMA0的IRQ
-      
-      LineCount = 0;               //采集行数初始值为1，后面的溢出判断就用">"而不是">="
-      LineRealCount = 0;
-      //LineCount_Index = 0;
-
-      //DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgRaw[0];     //目的地址恢复为数组开头
-
-      if(ImgPresent == ImgNO1)    //如果当前是第1幅图像正在接收数据（即第2幅图像接收完成）
-      {
-          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore1[0];     //目的地址恢复为第1个图像储存数组
-      }
-      else if(ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
-      {
-          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore2[0];     //目的地址恢复为第2个图像储存数组
-      }
-      else 
-      {
-          //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);   //错误警告
-      }
-
-      DMA_ERQ &= ~(1 << 0);      //DMA硬件禁用
-    }
-    else
-    {
-        //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);  //错误警报
-    }
-  
-}
-
-
-
-//行中断服务函数,上升沿触发中断，暂定为PTC8
-void LineIsr(void)
-{
-    ErrorCountNow8++;
-    
-    if(LineRealCount == LineRealCountVal120_60_02[LineCount])  //如果是需要采集的行，就采集，不是的话就跳过
-    {
-       //LineCount_Index++;
-        //DMA_INT |= (1<<0);        //清DMA传输完成标志位
-        DMA_ERQ |= (1 << 0);      //DMA硬件使能
-    }
-    LineRealCount++;             //实际行计数
-}
-
 
 
 

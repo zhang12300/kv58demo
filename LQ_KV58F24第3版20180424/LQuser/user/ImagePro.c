@@ -15117,7 +15117,7 @@ uint8 ImageSend(void)
     ImgPut();
     
     //发送图像存储数组到上位机
-    SendImage(ImgNew);      
+    UARTSendPicture(ImgNew);      
     
     return 1;
 }
