@@ -224,9 +224,9 @@ void DMA_Count_Reset(DMA_CHn CHn)
 
 void DMA_CH4_Handler(void)
 {
-    DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输
+    
     uint8 DMACHno = 0;
-  
+    DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输
     ErrorCountNow9++;
     
     
@@ -254,7 +254,7 @@ void DMA_CH4_Handler(void)
                 
         //disable_irq(FIELD_IRQ);   //场中断IRQ禁用，等待下一次ImgGet()函数再开启
         disable_irq(LINE_IRQ);    //行中断IRQ禁用
-         DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输//enable_irq(DMA0_IRQ);    //DMA0的IRQ禁用   
+       DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输//enable_irq(DMA0_IRQ);    //DMA0的IRQ禁用  //并不清楚这里到底是开启还是禁用 
          
     }   
 }
