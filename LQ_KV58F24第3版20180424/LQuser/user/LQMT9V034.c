@@ -184,7 +184,7 @@ void MT9V034_Init(void)
 
   SCCB_RegWrite(MT9V034_I2C_ADDR, MT9V034_RESET, 0x03);          //0x0c  复位
   
-  DMATransDataInit(DMA_CH4,(void*)&PTD_BYTE0_IN,(void*)Image_Data,PTD12,DMA_BYTE1,IMAGEW,DMA_rising_down);//初始化DMA采集  
+  DMATransDataInit(DMA_CH4,(void*)&PTD_BYTE0_IN,PTD12,DMA_BYTE1,IMAGEW,DMA_rising_down);//初始化DMA采集  
 
 }
 void MT9V034_SetFrameResolution(uint16_t height,uint16_t width)
@@ -278,7 +278,7 @@ void MT9V034_SetReservedReg(void)
 * 修改时间：2018年3月27日 
 * 备 注： 
 ***************************************************************/ 
-__ramfunc void DMATransDataInit(DMA_CHn CHn,void *SADDR, void *DADDR,PTXn_e ptxn,DMA_BYTEn byten,u32 count,DMA_Count_cfg cfg) 
+__ramfunc void DMATransDataInit(DMA_CHn CHn,void *SADDR, PTXn_e ptxn,DMA_BYTEn byten,u32 count,DMA_Count_cfg cfg) 
 { 
   u8 BYTEs = (byten == DMA_BYTE1 ? 1 : (byten == DMA_BYTE2 ? 2 : (byten == DMA_BYTE4 ? 4 : 16 ) ) ); //计算传输字节数
   //开启时钟 
@@ -286,7 +286,18 @@ __ramfunc void DMATransDataInit(DMA_CHn CHn,void *SADDR, void *DADDR,PTXn_e ptxn
   SIM_SCGC6 |= SIM_SCGC6_DMAMUX_MASK;                     //打开DMA多路复用器时钟
   // 配置 DMA 通道 的 传输控制块 TCD ( Transfer Control Descriptor ) 
   DMA_SADDR(CHn) =    (u32)SADDR;                         // 设置  源地址
-  DMA_DADDR(CHn) =    (u32)DADDR;                         // 设置目的地址
+//  if(ImgPresent == ImgNO1)    //如果当前是第1幅图像正在接收数据（即第2幅图像接收完成）
+//     {
+//          DMA_DADDR(CHn)  = (uint32)ImgStore1[0];     //目的地址恢复为第1个图像储存数组
+//     }
+//  else if(ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
+//     {
+//         DMA_DADDR(CHn)  = (uint32)ImgStore2[0];     //目的地址恢复为第2个图像储存数组
+//     }
+//  else
+//  {
+//  }
+ 
   DMA_SOFF(CHn)  =    0;                                  // 设置源地址不变
   DMA_DOFF(CHn)  =    BYTEs;                                  // 每次传输后，目的加BYUEs
   DMA_ATTR(CHn)  =    (0
