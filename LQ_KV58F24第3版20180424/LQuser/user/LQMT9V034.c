@@ -69,7 +69,7 @@ void PORTD_IRQHandler(void)
     if(ImgStatus == ImgGetStart)  //如果的确是在ImageGet()中置了开始位，则继续。
     {
       //进来前已经清过标志位
-      NVIC_DisableIRQ(62);    //使能行中断IRQ
+      ENABLELINEIRQ=1   //使能行中断IRQ
       DMA_EN(CHn);                       //使能DMA0的IRQ
       
       LineCount = 0;               //采集行数初始值为1，后面的溢出判断就用">"而不是">="
