@@ -27,6 +27,7 @@ int OFFSET0=0;      //最远处，赛道中心值综合偏移量
 int OFFSET1=0;      //第二格
 int OFFSET2=0;      //最近，第三格
 int TXV=0;          //梯形的左高度，右高度
+int ENABLELINEIRQ=1; //为了实现行中断和场中断的区分而设置，当ENABLELINE=1时，行中断开启
 
 __ramfunc void DMATransDataInit(DMA_CHn CHn,void *SADDR, void *DADDR,PTXn_e ptxn,DMA_BYTEn byten,u32 count,DMA_Count_cfg cfg) ;
 __ramfunc void DMATransDataStart(uint8_t CHn,uint32_t address,uint32_t Val) ;
@@ -35,7 +36,7 @@ __ramfunc void DMATransDataStart(uint8_t CHn,uint32_t address,uint32_t Val) ;
 void PORTD_IRQHandler(void) 
 {  
   //行中断PTD13 
-  if((PORTD_ISFR & 0x2000)) //行中断 PTD13 (1<<13) 
+  if((PORTD_ISFR & 0x2000)&&ENABLELINEIRQ==1) //行中断 PTD13 (1<<13) 
   { 
     PORTD_ISFR |= 0x2000;   //清除中断标识 
     ErrorCountNow8++;

@@ -116,6 +116,61 @@ void ImageGet(void)
     while(ImgStatus != ImgGetFinish) ; //如果图像采集未结束，则一直等待。
         
 }
+//DMA0传输结束函数，由PCLK触发，B9
+//这些处理放在这里，而不是放在LineIsr的原因是LineIsr进入后要马上开始采数据，来不及
+void DMA0_Isr(void)
+{
+  
+    uint8 DMACHno = 0;
+  
+    ErrorCountNow9++;
+    
+    
+    DMA_INT |= (1 << DMACHno);    //清DMA0通道传输完成中断标志位
+    LineCount++;              //采集行计数值加1
+    
+    if(LineCount >= CameraHight)   //如果采集完成
+    {
+        ImgStatus = ImgGetFinish;    //图像采集结束标志位
+           
+        if(ImgPresent == ImgNO1)  
+        //如果当前采集的是第1幅图像，那么第1幅图像就采集完了，准备采集第2幅图像
+        {
+            ImgPresent = ImgNO2;  
+        }
+        else if(ImgPresent == ImgNO2)
+        //如果当前采集的是第2幅图像，那么第2幅图像就采集完了，准备采集第1幅图像
+        {
+            ImgPresent = ImgNO1;
+        }
+        else
+        {
+            //uart_sendN(UART0, (uint8 *)"\nError In DMA0_Isr()!", 21);  //错误警告 
+        }
+                
+        //disable_irq(FIELD_IRQ);   //场中断IRQ禁用，等待下一次ImgGet()函数再开启
+        disable_irq(LINE_IRQ);    //行中断IRQ禁用
+        enable_irq(DMA0_IRQ);    //DMA0的IRQ禁用   
+         
+    }   
+    
+  /*
+    uint8 DMACHno = 0;
+    DMA_INT |= (1 << DMACHno);    //清DMA0通道传输完成中断标志位
+    LineCount++;              //采集行计数值加1
+    
+    if(LineCount >= CameraHight)   //如果采集完成
+    {
+        ImgStatus = ImgGetFinish;    //图像采集结束标志位
+        disable_irq(FIELD_IRQ);   //场中断IRQ禁用，等待下一次ImgGet()函数再开启
+        disable_irq(LINE_IRQ);    //行中断IRQ禁用
+        disable_irq(DMA0_IRQ);    //DMA0的IRQ禁用          
+    }
+    */
+}
+ 
+
+
 
 
 

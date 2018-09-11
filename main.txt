@@ -165,6 +165,8 @@ void main(void)
 	PORTD_ISFR |= 0x1000;   //清PCLK所在PORT的标志位
 							//PORTD_IRQn = 62,  /**< Port D interrupt */
 	NVIC_EnableIRQ(62);
+	
+	DMA_DIS(DMA_CH4); 
 	ImgStatus = ImgGetStart;        //图像采集标志位置为开始
 	
 	//初始化扫描拨码开关。
@@ -178,15 +180,18 @@ void main(void)
 	  LCD_P6x8Str(13,5,(uint8_t*)"Send Image ");
       while(ImgStatus != ImgGetFinish); //如果图像采集未结束，则一直等待。
       NVIC_DisableIRQ(62);
-      ImageSend();//UARTSendPicture(Image_Data);//发送数据到上位机，注意协议格式，不同的上位机看原函数对应修改//学长程序是ImageSend();
+	  DMA_DIS(DMA_CH4); 
+      ImageSend();//发送数据到上位机，注意协议格式，不同的上位机看原函数对应修改//学长程序是ImageSend();
       
 	  PORTD_ISFR |= 0x2000;   //清除行中断标识PTD13（1<<13）
 	  PORTD_ISFR |= 0x4000;   //清除场中断标识PTD14(1<<14)
 	  PORTD_ISFR |= 0x1000;   //清PCLK所在PORT的标志位
       NVIC_EnableIRQ(62);
+	  DMA_DIS(DMA_CH4);  
       ImgStatus = ImgGetStart;              //图像采集标志位置为开始
     }
     //若拨码开关1拨在1的位置，则一直用OLED调参，否则跳出while循环，正常跑车。
+	
 	
 	
 								
