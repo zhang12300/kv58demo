@@ -41,7 +41,18 @@ void PORTD_IRQHandler(void)
     ErrorCountNow8++;
     if(LineRealCount == LineRealCountVal120_60_02[LineCount])  //如果是需要采集的行，就采集，不是的话就跳过
     {
-      DMATransDataStart(DMA_CH4,(uint32_t)(&Image_Data[LineRealCount][0]),IMAGEW); //DMA开始传输数据PTD12管脚触发
+      if(ImgPresent == ImgNO1)    //如果当前是第1幅图像正在接收数据（即第2幅图像接收完成）
+      {
+          DMATransDataStart(DMA_CH4,(uint32_t)(&ImgStore1[LineRealCount][0]),IMAGEW); //DMA开始传输数据PTD12管脚触发
+          
+      }
+      else if(ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
+      {
+          DMATransDataStart(DMA_CH4,(uint32_t)(&ImgStore1[LineRealCount][0]),IMAGEW); //目的地址恢复为第2个图像储存数组
+      }
+      else 
+      {
+      }    
     }
     
     if(Line_Cont > IMAGEH)  //采集结束
@@ -56,7 +67,43 @@ void PORTD_IRQHandler(void)
   //场中断PTD14
   if((PORTD_ISFR & 0x4000))//场中断 PTD14 (1<<14)
   {
-    PORTD_ISFR |= 0x4000;  //清除中断标识    
+     
+    PORTD_ISFR |= 0x4000;  //清除中断标识   
+    
+    ErrorCountNow7++;
+
+    if(ImgStatus == ImgGetStart)  //如果的确是在ImageGet()中置了开始位，则继续。
+    {
+      //进来前已经清过标志位
+      enable_irq(LINE_IRQ);         //使能行中断IRQ
+      enable_irq(DMA0_IRQ);         //使能DMA0的IRQ
+      
+      LineCount = 0;               //采集行数初始值为1，后面的溢出判断就用">"而不是">="
+      LineRealCount = 0;
+      //LineCount_Index = 0;
+
+      //DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgRaw[0];     //目的地址恢复为数组开头
+
+      if(ImgPresent == ImgNO1)    //如果当前是第1幅图像正在接收数据（即第2幅图像接收完成）
+      {
+          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore1[0];     //目的地址恢复为第1个图像储存数组
+      }
+      else if(ImgPresent == ImgNO2)  //如果当前是第2幅图像正在接收数据（即第1幅图像接收完成）
+      {
+          DMA_BASE_PTR->TCD[0].DADDR = (uint32)ImgStore2[0];     //目的地址恢复为第2个图像储存数组
+      }
+      else 
+      {
+          //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);   //错误警告
+      }
+
+      DMA_ERQ &= ~(1 << 0);      //DMA硬件禁用
+    }
+    else
+    {
+        //uart_sendN(UART0, (uint8 *)"\nError In FieldIsr()!", 21);  //错误警报
+    }
+  
     // 用户程序 
     Line_Cont = 0;         //行计数清零
     Field_Over_Flag=1;     //场结束标识

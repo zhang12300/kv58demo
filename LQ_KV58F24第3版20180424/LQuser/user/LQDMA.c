@@ -224,8 +224,42 @@ void DMA_Count_Reset(DMA_CHn CHn)
 
 void DMA_CH4_Handler(void)
 {
-    DMA_IRQ_CLEAN(DMA_CH4);                                 //清除通道传输中断标志位    (这样才能再次进入中断)
     DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输
+    uint8 DMACHno = 0;
+  
+    ErrorCountNow9++;
+    
+    
+   DMA_IRQ_CLEAN(DMA_CH4);                                 //清除通道传输中断标志位    (这样才能再次进入中断)    //清DMA0通道传输完成中断标志位
+    LineCount++;              //采集行计数值加1
+    
+    if(LineCount >= CameraHight)   //如果采集完成
+    {
+        ImgStatus = ImgGetFinish;    //图像采集结束标志位
+           
+        if(ImgPresent == ImgNO1)  
+        //如果当前采集的是第1幅图像，那么第1幅图像就采集完了，准备采集第2幅图像
+        {
+            ImgPresent = ImgNO2;  
+        }
+        else if(ImgPresent == ImgNO2)
+        //如果当前采集的是第2幅图像，那么第2幅图像就采集完了，准备采集第1幅图像
+        {
+            ImgPresent = ImgNO1;
+        }
+        else
+        {
+            //uart_sendN(UART0, (uint8 *)"\nError In DMA0_Isr()!", 21);  //错误警告 
+        }
+                
+        //disable_irq(FIELD_IRQ);   //场中断IRQ禁用，等待下一次ImgGet()函数再开启
+        disable_irq(LINE_IRQ);    //行中断IRQ禁用
+         DMA_DIS(DMA_CH4);                                       //采集完H个数据后进入这个DMA中断，停止DMA传输。行中断中打开DMA传输//enable_irq(DMA0_IRQ);    //DMA0的IRQ禁用   
+         
+    }   
+}
+    
+    
    
 }
 //测试DMA计数功能  PTA12作为输入管脚
