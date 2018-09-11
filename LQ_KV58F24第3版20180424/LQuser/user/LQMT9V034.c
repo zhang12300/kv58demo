@@ -31,13 +31,19 @@ int TXV=0;          //梯形的左高度，右高度
 __ramfunc void DMATransDataInit(DMA_CHn CHn,void *SADDR, void *DADDR,PTXn_e ptxn,DMA_BYTEn byten,u32 count,DMA_Count_cfg cfg) ;
 __ramfunc void DMATransDataStart(uint8_t CHn,uint32_t address,uint32_t Val) ;
 
-//摄像头图像采集中断处理函数 
+//摄像头图像采集中断处理函数 （不清楚学长为什么先关闭行中断而开启场中断）
 void PORTD_IRQHandler(void) 
 {  
   //行中断PTD13 
   if((PORTD_ISFR & 0x2000)) //行中断 PTD13 (1<<13) 
   { 
     PORTD_ISFR |= 0x2000;   //清除中断标识 
+    ErrorCountNow8++;
+    if(LineRealCount == LineRealCountVal120_60_02[LineCount])  //如果是需要采集的行，就采集，不是的话就跳过
+    {
+      DMATransDataStart(DMA_CH4,(uint32_t)(&Image_Data[LineRealCount][0]),IMAGEW); //DMA开始传输数据PTD12管脚触发
+    }
+    
     if(Line_Cont > IMAGEH)  //采集结束
     { 
       Line_Cont=0; 
